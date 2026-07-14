@@ -1,0 +1,31 @@
+{
+  "jira": {
+    "site": "https://tunsworkspace-21049679.atlassian.net",
+    "project": "KAN",
+    "story_points_field": null
+  },
+  "github": {
+    "repos": [],
+    "note": "Thêm repo BE/FE của team vào đây khi tạo, dạng owner/repo. Job đọc PR + commit để tính α."
+  },
+  "scoring": {
+    "size_points": { "S": 1, "M": 3, "L": 5 },
+    "support_rate": 0.5,
+    "support_cap_ratio": 0.3
+  },
+  "agent": {
+    "shared_email": "agent@team06",
+    "author_prefix": "agent-",
+    "supervisor_tag": "[AI-Kiem-soat-task]"
+  },
+  "members": [
+    { "ho_ten": "Nguyễn Lê Cao Tuấn",   "display": "tuannlc", "role": "BE/FE/AI", "jira_email": "nlctuan@gmail.com",       "github": "nlctuan",        "git_emails": [] },
+    { "ho_ten": "Nguyễn Quốc Vương",    "display": "vuongnq", "role": "BE/FE/AI", "jira_email": "nqvuong7799@gmail.com",   "github": "vuongnguyen99",  "git_emails": [] },
+    { "ho_ten": "Lê Thành Danh",        "display": "danhlt",  "role": "BE/FE",    "jira_email": "lethanhdanh100@gmail.com","github": null,             "git_emails": [] },
+    { "ho_ten": "Võ Thị Vĩ",            "display": "vivt",    "role": "BE/FE",    "jira_email": "vi2608.vt@gmail.com",     "github": "vothivi98",      "git_emails": [] },
+    { "ho_ten": "Nguyễn Trần Xuân Lộc", "display": "locntx",  "role": "AI",       "jira_email": "ntxl1588@gmail.com",      "github": "ntxl1210",       "git_emails": [] },
+    { "ho_ten": "Đặng Ngọc Ánh",        "display": "anhdn",   "role": "BE/FE",    "jira_email": "dnanhtdc@gmail.com",      "github": "danganh208",     "git_emails": [] },
+    { "ho_ten": "Trương Khánh Sơn",     "display": "sontk",   "role": "FE",       "jira_email": "sontk49@gmail.com",       "github": "sontk49",        "git_emails": [] },
+    { "ho_ten": "Lê Đăng Khoa",         "display": "khoald",  "role": "BE",       "jira_email": "ldkhoa.11402@gmail.com",  "github": "ledangkhoa11-4", "git_emails": [] }
+  ]
+}
