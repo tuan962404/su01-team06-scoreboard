@@ -382,17 +382,11 @@ def initials_of(ho_ten):
 
 
 def avatar_html(m, size):
+    """Avatar initials thống nhất cho MỌI thành viên (user chốt 15/07 — không dùng ảnh GitHub)."""
     initials = esc(initials_of(m.get("ho_ten") or m["display"]))
-    fallback = (f'<span class="avi" style="width:{size}px;height:{size}px;'
-                f'line-height:{size}px;font-size:{int(size*0.34)}px">{initials}</span>')
-    if m.get("github"):
-        return (f'<span class="av" style="width:{size}px;height:{size}px">'
-                f'<img src="https://github.com/{esc(m["github"])}.png?size={size*2}" alt="{esc(m["display"])}"'
-                f' width="{size}" height="{size}" loading="lazy"'
-                f' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-block\'">'
-                f'<span class="avi" style="display:none;width:{size}px;height:{size}px;'
-                f'line-height:{size}px;font-size:{int(size*0.34)}px">{initials}</span></span>')
-    return f'<span class="av" style="width:{size}px;height:{size}px">{fallback}</span>'
+    return (f'<span class="av" style="width:{size}px;height:{size}px">'
+            f'<span class="avi" style="width:{size}px;height:{size}px;'
+            f'line-height:{size}px;font-size:{int(size*0.34)}px">{initials}</span></span>')
 
 
 def stacked_bar(done, support, max_total):
