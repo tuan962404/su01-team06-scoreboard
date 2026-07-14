@@ -258,11 +258,14 @@ def compute(cfg):
         if not resolved or status.lower() not in ("done", "hoàn thành", "xong"):
             continue
 
-        # α theo diff additions trên nhánh task (agent + giám thị / tổng)
+        # α theo diff additions trên nhánh task — tách riêng agent RIÊNG vs GIÁM THỊ
         commits = task_commits.get(it["key"], [])
         total = sum(c["additions"] for c in commits)
-        agent_part = sum(c["additions"] for c in commits if c["kind"] in ("agent", "supervisor"))
-        alpha = round(agent_part / total, 3) if total else 0.0
+        agent_part = sum(c["additions"] for c in commits if c["kind"] == "agent")
+        sup_part = sum(c["additions"] for c in commits if c["kind"] == "supervisor")
+        alpha_agent = round(agent_part / total, 3) if total else 0.0
+        alpha_sup = round(sup_part / total, 3) if total else 0.0
+        alpha = round(alpha_agent + alpha_sup, 3)
 
         due = parse_jira_dt(f.get("duedate") + "T23:59:59" if f.get("duedate") else None)
         late = bool(due and resolved > due)
@@ -270,7 +273,8 @@ def compute(cfg):
         wk = week_key(resolved)
         bucket(wk, disp)["done"] += pts
         rows.append({"task": it["key"], "summary": f.get("summary", ""), "assignee": disp,
-                     "size": size or "?", "alpha": alpha, "late": late,
+                     "size": size or "?", "alpha": alpha, "alpha_agent": alpha_agent,
+                     "alpha_sup": alpha_sup, "late": late,
                      "points": round(pts, 2), "week": wk})
 
     # trần điểm hỗ trợ: support ≤ 30% tổng điểm tuần ⇒ support ≤ 3/7 × done
@@ -342,8 +346,11 @@ def inject_demo(data, cfg):
     for task, summary, disp, size, alpha, late, wk in DEMO_TASKS:
         pts = size_pts[size] * (1 - alpha)
         bucket(wk, disp)["done"] += pts
+        # task trễ → phần α là Agent GIÁM THỊ làm nốt; còn lại là agent riêng
         rows.append({"task": task, "summary": summary, "assignee": disp, "size": size,
-                     "alpha": alpha, "late": late, "points": round(pts, 2), "week": wk})
+                     "alpha": alpha, "alpha_agent": 0.0 if late else alpha,
+                     "alpha_sup": alpha if late else 0.0,
+                     "late": late, "points": round(pts, 2), "week": wk})
     for task, helper, size, wk in DEMO_SUPPORT:
         s = size_pts[size] * cfg["scoring"]["support_rate"]
         bucket(wk, helper)["support"] += s
@@ -500,15 +507,28 @@ def render(data, cfg):
                           f'<tbody>{lines}</tbody></table>')
 
     task_rows = ""
-    for r in sorted(data["rows"], key=lambda r: r["task"]):
-        alpha_txt = f'Agent gánh {r["alpha"]*100:.0f}%' if r["alpha"] else "tự làm 100%"
+    # tuần mới nhất trước; trong tuần xếp theo số task
+    def _tasknum(r):
+        m = re.search(r"(\d+)$", r["task"])
+        return int(m.group(1)) if m else 0
+    for r in sorted(data["rows"], key=lambda r: (r["week"], _tasknum(r)), reverse=True):
+        parts = []
+        if r.get("alpha_agent"):
+            parts.append(f'Agent riêng gánh {r["alpha_agent"]*100:.0f}%')
+        if r.get("alpha_sup"):
+            parts.append(f'Agent giám thị gánh {r["alpha_sup"]*100:.0f}%')
+        if not parts and r["alpha"]:
+            parts.append(f'Agent gánh {r["alpha"]*100:.0f}%')
+        alpha_txt = " · ".join(parts) or "tự làm 100%"
         late = ' <span class="late">trễ</span>' if r["late"] else ""
         task_rows += (f'<tr><td>{esc(r["task"])}</td><td>{esc(r["summary"])}{late}</td>'
                       f'<td class="name">{esc(r["assignee"])}</td><td>{esc(r["size"])}</td>'
                       f'<td>{esc(alpha_txt)}</td><td class="num">{r["points"]:.2f}</td>'
                       f'<td>{esc(r["week"])}</td></tr>')
-    tasks_html = (f'<table><thead><tr><th>Task</th><th>Tóm tắt</th><th>Người nhận</th><th>Size</th>'
+    tasks_html = (f'<p class="tcount">{len(data["rows"])} task Done · mới nhất trước</p>'
+                  f'<table id="tasktbl"><thead><tr><th>Task</th><th>Tóm tắt</th><th>Người nhận</th><th>Size</th>'
                   f'<th>α (Agent)</th><th>Điểm</th><th>Tuần</th></tr></thead><tbody>{task_rows}</tbody></table>'
+                  f'<div class="pager" id="pager"></div>'
                   if task_rows else '<p class="empty">Chưa có task Done.</p>')
 
     warn_html = ""
@@ -591,6 +611,12 @@ def render(data, cfg):
   .rules {{ font-size:13.5px; line-height:1.55; }}
   .rules code {{ background:#f1f1f1; padding:1px 5px; border-radius:3px; }}
   footer {{ text-align:center; color:#999; font-size:12px; padding:18px; }}
+  .tcount {{ color:#8a94a6; font-size:12.5px; margin:0 0 8px; }}
+  .pager {{ display:flex; gap:6px; justify-content:center; margin-top:14px; flex-wrap:wrap; }}
+  .pager button {{ border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:6px;
+    padding:5px 11px; font-size:13px; cursor:pointer; }}
+  .pager button:disabled {{ opacity:.4; cursor:default; }}
+  .pager button.cur {{ background:var(--ink); color:#fff; border-color:var(--ink); }}
   #tip {{ position:fixed; z-index:9; background:var(--ink); color:#fff; font-size:12.5px; padding:6px 10px;
           border-radius:6px; pointer-events:none; opacity:0; transition:opacity .12s; max-width:260px; }}
   @media (max-width:640px) {{
@@ -650,6 +676,32 @@ document.addEventListener('mousemove',function(e){{
     tip.style.top=(e.clientY+16)+'px';}}
   else tip.style.opacity=0;
 }});
+(function(){{
+  var SIZE=10, tbl=document.getElementById('tasktbl');
+  if(!tbl) return;
+  var rows=[].slice.call(tbl.tBodies[0].rows), pager=document.getElementById('pager');
+  if(rows.length<=SIZE){{ pager.style.display='none'; return; }}
+  var pages=Math.ceil(rows.length/SIZE), cur=0;
+  function show(p){{
+    cur=Math.max(0,Math.min(p,pages-1));
+    rows.forEach(function(r,i){{ r.style.display=(i>=cur*SIZE&&i<(cur+1)*SIZE)?'':'none'; }});
+    var html='<button '+(cur===0?'disabled':'')+' data-p="'+(cur-1)+'">‹ Trước</button>';
+    for(var i=0;i<pages;i++){{
+      if(pages>9 && Math.abs(i-cur)>3 && i>0 && i<pages-1){{
+        if(Math.abs(i-cur)===4) html+='<button disabled>…</button>';
+        continue;
+      }}
+      html+='<button class="'+(i===cur?'cur':'')+'" data-p="'+i+'">'+(i+1)+'</button>';
+    }}
+    html+='<button '+(cur===pages-1?'disabled':'')+' data-p="'+(cur+1)+'">Sau ›</button>';
+    pager.innerHTML=html;
+  }}
+  pager.addEventListener('click',function(e){{
+    var b=e.target.closest('button[data-p]');
+    if(b&&!b.disabled) show(parseInt(b.getAttribute('data-p'),10));
+  }});
+  show(0);
+}})();
 </script>
 <footer>Trang tĩnh build bởi GitHub Actions (cron hằng đêm) · dữ liệu Jira board Jira · {esc(data["issue_count"])} issue được quét</footer>
 </body></html>"""
