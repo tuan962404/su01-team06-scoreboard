@@ -198,6 +198,9 @@ def compute(cfg):
     for repo in cfg["github"]["repos"]:
         try:
             for pr in gh.pulls(repo):
+                # PR đóng mà KHÔNG merge = nhánh bỏ đi → không tính vào α
+                if pr.get("state") == "closed" and not pr.get("merged_at"):
+                    continue
                 proj = cfg["jira"]["project"]
                 mkey = re.match(rf"({proj}-\d+)", (pr.get("head", {}).get("ref") or "") + " " +
                                 (pr.get("title") or ""), re.I)
