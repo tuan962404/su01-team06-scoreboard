@@ -1,8 +1,8 @@
 {
   "jira": {
     "site": "https://tunsworkspace-21049679.atlassian.net",
-    "project": "KAN",
-    "story_points_field": null
+    "project": "OAD",
+    "story_points_field": "customfield_10016"
   },
   "github": {
     "repos": [],

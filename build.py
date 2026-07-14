@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Build bảng điểm SU01 Team 06 → dist/index.html (static, GitHub Pages).
 
-Nguồn dữ liệu: Jira Cloud (project KAN) + GitHub (repo team, nếu khai trong config).
+Nguồn dữ liệu: Jira Cloud (project OAD) + GitHub (repo team, nếu khai trong config).
 Công thức: docs/onboarding/5-cong-thuc-tinh-diem.md (repo ops-agent-detective).
   - Điểm hoàn thành = size (Story Points S=1/M=3/L=5) × (1 − α)
   - α = phần Agent làm thay, đo qua author `agent-*@team06` hoặc tag [AI-Kiem-soat-task]
@@ -175,7 +175,7 @@ def compute(cfg):
 
     sp_field = jira.story_points_field(cfg["jira"].get("story_points_field"))
     if not sp_field:
-        warnings.append("Board KAN chưa bật field Story Points (bật Estimation trong "
+        warnings.append("Board chưa bật field Story Points (bật Estimation trong "
                         "Project settings → Features) — task chưa có size sẽ tính 0 điểm.")
 
     issues = jira.search_issues(cfg["jira"]["project"], sp_field)
@@ -193,11 +193,12 @@ def compute(cfg):
             pass
 
     # gom commit theo task từ các repo GitHub khai trong config
-    task_commits = {}  # KAN-xx -> list[{agent_for, additions, human_email, login}]
+    task_commits = {}  # OAD-xx -> list[{agent_for, additions, human_email, login}]
     for repo in cfg["github"]["repos"]:
         try:
             for pr in gh.pulls(repo):
-                mkey = re.match(r"(KAN-\d+)", (pr.get("head", {}).get("ref") or "") + " " +
+                proj = cfg["jira"]["project"]
+                mkey = re.match(rf"({proj}-\d+)", (pr.get("head", {}).get("ref") or "") + " " +
                                 (pr.get("title") or ""), re.I)
                 if not mkey:
                     continue
@@ -563,7 +564,7 @@ commit author <code>agent-*</code> / <code>agent@team06</code>, hoặc tag <code
 (Agent giám thị làm nốt task trễ). Dùng Agent không bị âm điểm.<br>
 <b>Điểm hỗ trợ</b> = size phần giúp × 50% — dấu vết máy đọc được: commit trên nhánh task người khác,
 PR review, hoặc comment Jira <code>HO-TRO: @người-giúp — size S</code>; trần ≤ 30% tổng điểm tuần.<br>
-Task đủ điều kiện tính điểm khi chuyển <b>Done</b> trên board KAN; size khoá lúc bắt đầu làm
+Task đủ điều kiện tính điểm khi chuyển <b>Done</b> trên board Jira; size khoá lúc bắt đầu làm
 (đổi scope thật → comment <code>SIZE-DOI:</code>).<br>
 Chi tiết đầy đủ: tài liệu <i>5 · Công thức tính điểm</i> trong kho onboarding của team.
 </div>
@@ -579,7 +580,7 @@ document.addEventListener('mousemove',function(e){{
   else tip.style.opacity=0;
 }});
 </script>
-<footer>Trang tĩnh build bởi GitHub Actions (cron hằng đêm) · dữ liệu Jira board KAN · {esc(data["issue_count"])} issue được quét</footer>
+<footer>Trang tĩnh build bởi GitHub Actions (cron hằng đêm) · dữ liệu Jira board Jira · {esc(data["issue_count"])} issue được quét</footer>
 </body></html>"""
     return html
 

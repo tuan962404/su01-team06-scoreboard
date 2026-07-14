@@ -9,7 +9,7 @@ build tự động hằng đêm bằng GitHub Actions, host trên GitHub Pages.
 
 ```
 GitHub Actions (cron 00:15 VN, hằng đêm)
-  → build.py đọc Jira Cloud (board KAN) + GitHub API (repo team)
+  → build.py đọc Jira Cloud (board OAD) + GitHub API (repo team)
   → tính điểm theo công thức 5-cong-thuc-tinh-diem.md
   → sinh dist/index.html → deploy GitHub Pages
 ```
