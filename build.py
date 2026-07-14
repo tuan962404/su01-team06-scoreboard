@@ -16,6 +16,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -302,6 +303,67 @@ def compute(cfg):
 def esc(s):
     return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
+DEMO_TASKS = [
+    # (task, tóm tắt, display, size, alpha, trễ, tuần)
+    ("OAD-1", "Router structured output tiếng Việt", "tuannlc", "M", 0.25, False, "2026-W29"),
+    ("OAD-2", "Tool adapter mock đơn hàng", "vuongnq", "S", 0.0, False, "2026-W29"),
+    ("OAD-3", "Skeleton BE Spring Boot + Flyway", "danhlt", "M", 0.4, True, "2026-W29"),
+    ("OAD-4", "FE timeline vụ điều tra", "vivt", "M", 0.15, False, "2026-W30"),
+    ("OAD-5", "Golden tests router (bộ eval)", "locntx", "S", 0.0, False, "2026-W30"),
+    ("OAD-6", "Chat SSE + nút feedback 👍/👎", "anhdn", "M", 0.3, False, "2026-W30"),
+    ("OAD-7", "Dashboard bảng lệch baseline", "sontk", "S", 0.5, True, "2026-W30"),
+    ("OAD-8", "CaseRepo + migration V1", "khoald", "L", 0.2, False, "2026-W31"),
+    ("OAD-9", "Cron patrol 07:30 quét baseline", "tuannlc", "M", 0.1, False, "2026-W31"),
+    ("OAD-10", "Playbook don-ket-sau-thanh-toan", "vuongnq", "M", 0.35, False, "2026-W31"),
+    ("OAD-11", "Orchestrator vòng lặp ≤10 bước", "tuannlc", "L", 0.3, False, "2026-W32"),
+    ("OAD-12", "Validator chặn số ngoài tool", "locntx", "M", 0.0, True, "2026-W32"),
+]
+DEMO_SUPPORT = [
+    # (task được giúp, người giúp, size, tuần)
+    ("OAD-3", "tuannlc", "S", "2026-W29"),
+    ("OAD-6", "vivt", "S", "2026-W30"),
+    ("OAD-8", "danhlt", "S", "2026-W31"),
+]
+
+
+def inject_demo(data, cfg):
+    """Board chưa có task Done → đổ DỮ LIỆU MẪU (deterministic) để xem giao diện.
+
+    Tự biến mất: khi Jira có task Done thật, compute() trả rows ≠ rỗng và hàm này
+    không được gọi nữa.
+    """
+    size_pts = cfg["scoring"]["size_points"]
+    cap = cfg["scoring"]["support_cap_ratio"]
+    weeks, rows, support_log = {}, [], []
+
+    def bucket(week, disp):
+        return weeks.setdefault(week, {}).setdefault(disp, {"done": 0.0, "support": 0.0})
+
+    for task, summary, disp, size, alpha, late, wk in DEMO_TASKS:
+        pts = size_pts[size] * (1 - alpha)
+        bucket(wk, disp)["done"] += pts
+        rows.append({"task": task, "summary": summary, "assignee": disp, "size": size,
+                     "alpha": alpha, "late": late, "points": round(pts, 2), "week": wk})
+    for task, helper, size, wk in DEMO_SUPPORT:
+        s = size_pts[size] * cfg["scoring"]["support_rate"]
+        bucket(wk, helper)["support"] += s
+        support_log.append({"task": task, "helper": helper, "size": size,
+                            "points": s, "week": wk})
+    for wk, per in weeks.items():
+        for disp, v in per.items():
+            max_support = (cap / (1 - cap)) * v["done"]
+            if v["support"] > max_support:
+                v["support"] = round(max_support, 2)
+    totals = {}
+    for wk, per in weeks.items():
+        for disp, v in per.items():
+            t = totals.setdefault(disp, {"done": 0.0, "support": 0.0})
+            t["done"] += v["done"]
+            t["support"] += v["support"]
+    data.update(rows=rows, weeks=weeks, totals=totals, support_log=support_log, demo=True)
+    return data
+
+
 # ── Giao diện leaderboard ──────────────────────────────────────────────────
 # Màu data đã validate (dataviz 6-checks, light #fff): cam đậm #D97706 (hoàn
 # thành) + xanh #0972D3 (hỗ trợ). Cam brand #FF9900 chỉ làm accent trang trí.
@@ -309,8 +371,18 @@ C_DONE = "#D97706"
 C_SUPPORT = "#0972D3"
 
 
+def initials_of(ho_ten):
+    """'Nguyễn Lê Cao Tuấn' → 'TN' (chữ cái đầu TÊN + chữ cái đầu HỌ, bỏ dấu)."""
+    s = unicodedata.normalize("NFD", ho_ten or "")
+    s = "".join(c for c in s if not unicodedata.combining(c)).replace("đ", "d").replace("Đ", "D")
+    parts = [p for p in s.split() if p]
+    if not parts:
+        return "?"
+    return (parts[-1][0] + parts[0][0]).upper() if len(parts) > 1 else parts[0][0].upper()
+
+
 def avatar_html(m, size):
-    initials = esc(m["display"][:2].upper())
+    initials = esc(initials_of(m.get("ho_ten") or m["display"]))
     fallback = (f'<span class="avi" style="width:{size}px;height:{size}px;'
                 f'line-height:{size}px;font-size:{int(size*0.34)}px">{initials}</span>')
     if m.get("github"):
@@ -446,8 +518,12 @@ def render(data, cfg):
                   if task_rows else '<p class="empty">Chưa có task Done.</p>')
 
     warn_html = ""
+    if data.get("demo"):
+        warn_html += ('<div class="warn demo">🧪 <b>DỮ LIỆU MẪU</b> — board chưa có task Done thật '
+                      'nên trang đang hiển thị số liệu demo để xem giao diện. Khi Sprint chạy và có '
+                      'task Done đầu tiên, dữ liệu thật tự thay thế ở lần build kế tiếp.</div>')
     if data["warnings"]:
-        warn_html = '<div class="warn"><b>Lưu ý dữ liệu:</b><ul>' + "".join(
+        warn_html += '<div class="warn"><b>Lưu ý dữ liệu:</b><ul>' + "".join(
             f"<li>{esc(w)}</li>" for w in data["warnings"]) + "</ul></div>"
 
     html = f"""<!DOCTYPE html>
@@ -516,6 +592,7 @@ def render(data, cfg):
   .name {{ font-weight:600; }}
   .late {{ background:#c0392b; color:#fff; border-radius:3px; padding:1px 6px; font-size:11px; }}
   .empty {{ color:#777; background:#fafbfc; border:1px dashed var(--line); padding:16px; border-radius:8px; }}
+  .warn.demo {{ background:#eef6ff; border-color:#0972D3; }}
   .warn {{ background:#fff7e8; border:1px solid var(--accent); border-radius:8px; padding:10px 14px; margin:18px 0; font-size:13px; }}
   .rules {{ font-size:13.5px; line-height:1.55; }}
   .rules code {{ background:#f1f1f1; padding:1px 5px; border-radius:3px; }}
@@ -588,6 +665,8 @@ document.addEventListener('mousemove',function(e){{
 def main():
     cfg = load_config()
     data = compute(cfg)
+    if not data["rows"] and os.environ.get("DEMO_WHEN_EMPTY", "1") != "0":
+        inject_demo(data, cfg)
     os.makedirs(os.path.join(HERE, "dist"), exist_ok=True)
     with open(os.path.join(HERE, "dist", "index.html"), "w", encoding="utf-8") as f:
         f.write(render(data, cfg))

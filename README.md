@@ -39,3 +39,9 @@ Chỉ dùng Python stdlib, không cần cài gì thêm.
 - `scoring` — trọng số size, tỷ lệ hỗ trợ, trần hỗ trợ.
 
 Secrets trên repo (Actions): `JIRA_EMAIL`, `JIRA_API_TOKEN`.
+
+## Dữ liệu mẫu (demo)
+
+Board chưa có task Done → build tự đổ **dữ liệu mẫu** (badge 🧪 trên trang) để xem
+giao diện; có task Done thật là dữ liệu thật tự thay thế. Tắt hẳn demo: set env
+`DEMO_WHEN_EMPTY=0` khi build (hoặc thêm vào workflow).
