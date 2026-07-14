@@ -514,16 +514,16 @@ def render(data, cfg):
     for r in sorted(data["rows"], key=lambda r: (r["week"], _tasknum(r)), reverse=True):
         parts = []
         if r.get("alpha_agent"):
-            parts.append(f'Agent riêng gánh {r["alpha_agent"]*100:.0f}%')
+            parts.append(f'Agent gánh {r["alpha_agent"]*100:.0f}%')
         if r.get("alpha_sup"):
-            parts.append(f'Agent giám thị gánh {r["alpha_sup"]*100:.0f}%')
+            parts.append(f'<b>Agent giám thị</b> gánh {r["alpha_sup"]*100:.0f}%')
         if not parts and r["alpha"]:
             parts.append(f'Agent gánh {r["alpha"]*100:.0f}%')
-        alpha_txt = " · ".join(parts) or "tự làm 100%"
+        alpha_html = " · ".join(parts) or "tự làm 100%"
         late = ' <span class="late">trễ</span>' if r["late"] else ""
         task_rows += (f'<tr><td>{esc(r["task"])}</td><td>{esc(r["summary"])}{late}</td>'
                       f'<td class="name">{esc(r["assignee"])}</td><td>{esc(r["size"])}</td>'
-                      f'<td>{esc(alpha_txt)}</td><td class="num">{r["points"]:.2f}</td>'
+                      f'<td>{alpha_html}</td><td class="num">{r["points"]:.2f}</td>'
                       f'<td>{esc(r["week"])}</td></tr>')
     tasks_html = (f'<p class="tcount">{len(data["rows"])} task Done · mới nhất trước</p>'
                   f'<table id="tasktbl"><thead><tr><th>Task</th><th>Tóm tắt</th><th>Người nhận</th><th>Size</th>'

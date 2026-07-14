@@ -1,4 +1,5 @@
 name: build-scoreboard
+run-name: "Cập nhật bảng điểm (${{ github.event_name == 'schedule' && 'cron hằng đêm' || github.event_name == 'workflow_dispatch' && 'bấm tay' || 'sau khi đổi code' }})"
 
 on:
   schedule:
