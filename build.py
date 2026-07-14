@@ -512,14 +512,9 @@ def render(data, cfg):
         m = re.search(r"(\d+)$", r["task"])
         return int(m.group(1)) if m else 0
     for r in sorted(data["rows"], key=lambda r: (r["week"], _tasknum(r)), reverse=True):
-        parts = []
-        if r.get("alpha_agent"):
-            parts.append(f'Agent gánh {r["alpha_agent"]*100:.0f}%')
-        if r.get("alpha_sup"):
-            parts.append(f'<b>Agent giám thị</b> gánh {r["alpha_sup"]*100:.0f}%')
-        if not parts and r["alpha"]:
-            parts.append(f'Agent gánh {r["alpha"]*100:.0f}%')
-        alpha_html = " · ".join(parts) or "tự làm 100%"
+        # α hiển thị DUY NHẤT một loại: Agent giám thị (user chốt 15/07); không có α = tự làm
+        alpha_html = (f'<b>Agent giám thị</b> gánh {r["alpha"]*100:.0f}%'
+                      if r["alpha"] else "tự làm 100%")
         late = ' <span class="late">trễ</span>' if r["late"] else ""
         task_rows += (f'<tr><td>{esc(r["task"])}</td><td>{esc(r["summary"])}{late}</td>'
                       f'<td class="name">{esc(r["assignee"])}</td><td>{esc(r["size"])}</td>'
@@ -656,9 +651,9 @@ def render(data, cfg):
 <div class="card rules">
 <h2>Luật chơi (tóm tắt)</h2>
 <b>Điểm hoàn thành</b> = size task (Story Points <code>S=1 · M=3 · L=5</code>) × (1 − α).<br>
-<b>α</b> = phần việc Agent làm thay, đo bằng diff attribution trên nhánh task —
-commit author <code>agent-*</code> / <code>agent@team06</code>, hoặc tag <code>[AI-Kiem-soat-task]</code>
-(Agent giám thị làm nốt task trễ). Dùng Agent không bị âm điểm.<br>
+<b>α</b> = phần việc <b>Agent giám thị</b> gánh trên task, đo bằng diff attribution trên nhánh —
+nhận diện qua commit author <code>agent-*</code> / <code>agent@team06</code> hoặc tag
+<code>[AI-Kiem-soat-task]</code> (vd. làm nốt task trễ). Không có α = tự làm 100%; dùng Agent không bị âm điểm.<br>
 <b>Điểm hỗ trợ</b> = size phần giúp × 50% — dấu vết máy đọc được: commit trên nhánh task người khác,
 PR review, hoặc comment Jira <code>HO-TRO: @người-giúp — size S</code>; trần ≤ 30% tổng điểm tuần.<br>
 Task đủ điều kiện tính điểm khi chuyển <b>Done</b> trên board Jira; size khoá lúc bắt đầu làm
